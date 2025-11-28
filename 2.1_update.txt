@@ -1,0 +1,3 @@
+StringStats::GetPrefixCandidates() in string_stats.cpp returns a PrefixQuery whose prefixes field contains up to four PBF prefixes (1/2/4/8 bytes) for a given predicate. For a BETWEEN predicate, DuckDB calls this method twice, once for each bound, and processes the two boundaries independently.
+
+Since there is no LIKE-related ExpressionType, I modified src/optimizer/rule/like_optimizations.cpp to rewrite LIKE 'prefix%' into an equivalent range predicate (e.g., col >= prefix AND col < upper). This makes LIKE behave like a range/BETWEEN filter so that our PBF optimization can be applied.
