@@ -11,11 +11,21 @@
 
 namespace duckdb {
 
+static void ResetPBF(StringStatsData &string_data) {
+	string_data.has_pbf = false;
+	for (int i = 0; i < StringStatsData::NUM_PREFIXES; ++i) {
+		string_data.prefixes[i].level = 0;
+		memset(string_data.prefixes[i].bits, 0, StringStatsData::NUM_BYTES);
+	}
+}
+
 BaseStatistics StringStats::CreateUnknown(LogicalType type) {
 	BaseStatistics result(std::move(type));
 	result.InitializeUnknown();
 	auto &string_data = StringStats::GetDataUnsafe(result);
-	StringStats::Init_PBF(string_data);
+
+	ResetPBF(string_data);
+
 	for (idx_t i = 0; i < StringStatsData::MAX_STRING_MINMAX_SIZE; i++) {
 		string_data.min[i] = 0;
 		string_data.max[i] = 0xFF;
@@ -30,7 +40,9 @@ BaseStatistics StringStats::CreateEmpty(LogicalType type) {
 	BaseStatistics result(std::move(type));
 	result.InitializeEmpty();
 	auto &string_data = StringStats::GetDataUnsafe(result);
-	StringStats::Init_PBF(string_data);
+
+	ResetPBF(string_data);
+
 	for (idx_t i = 0; i < StringStatsData::MAX_STRING_MINMAX_SIZE; i++) {
 		string_data.min[i] = 0xFF;
 		string_data.max[i] = 0;
@@ -120,6 +132,9 @@ void StringStats::Deserialize(Deserializer &deserializer, BaseStatistics &base) 
 	deserializer.ReadProperty(202, "has_unicode", string_data.has_unicode);
 	deserializer.ReadProperty(203, "has_max_string_length", string_data.has_max_string_length);
 	deserializer.ReadProperty(204, "max_string_length", string_data.max_string_length);
+
+	// The current version does not perform PBF persistence, so PBF is disabled directly after deserialization.
+	ResetPBF(string_data);
 }
 
 static int StringValueComparison(const_data_ptr_t data, idx_t len, const_data_ptr_t comparison) {
